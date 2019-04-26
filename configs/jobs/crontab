@@ -1,0 +1,1 @@
+* * * * * root curl -s http://${WEB}/auction/autoffers 1>/proc/1/fd/1 2>&1

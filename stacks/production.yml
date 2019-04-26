@@ -1,0 +1,119 @@
+version: "3.4"
+
+configs:
+  crontab_20190114:
+    file: ./configs/crontab
+
+services:
+
+  web:
+    image: registry.netlabs.com.ar/netlabs/subastas
+    environment:
+      - DB_HOST=subastas_db
+      - DB_DATABASE=subastas
+      - DB_USERNAME=root
+      - DB_PASSWORD=pfjwortij987235!!eas
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - APP_KEY=8UjkgIRwUCW1iVb8ylTtb56OXGKALoul
+      - CACHE_DRIVER=file
+      - SESSION_DRIVER=file
+      - QUEUE_DRIVER=sync
+      - MAIL_DRIVER=smtp
+      - MAIL_HOST=190.210.73.141
+      - MAIL_PORT=25
+      - MAIL_USERNAME=alertas@netlabs.com.ar
+      - MAIL_PASSWORD=4l3rt4s
+      - MAIL_ENCRYPTION=null
+      - MAIL_ADDRESS_SYSTEM=sistema@subastas.com.ar
+      - MAIL_ADDRESS_SYSTEM_NAME=Subastas
+      - STAGE=production
+      - GOOGLE_ANALYTICS_ID=UA-132702736-3
+    networks:
+      - frontend
+      - backend
+    volumes:
+      - subastas_uploads:/var/www/html/public/img/products
+    deploy:
+      labels:
+        traefik.frontend.rule: "Host:subastas.netlabs.com.ar,subastasdelmar.com,www.subastasdelmar.com"
+        traefik.port: 80
+        traefik.docker.network: frontend
+        traefik.frontend.auth.basic: "admin:$$apr1$$Q2F8Za9A$$WyMQJF8lQO8HjuSx3GrGl0"
+#        traefik.frontend.whiteList.sourceRange: "190.111.246.210/32,201.216.224.192/29,190.210.73.128/28"
+
+  db:
+    image: mysql:5.7.22
+    command: mysqld --ignore-db-dir=lost+found
+    environment:
+      - MYSQL_ROOT_PASSWORD=pfjwortij987235!!eas
+    networks:
+      - backend
+    volumes:
+      - data:/var/lib/mysql
+    deploy:
+      labels:
+        traefik.enable: "false"
+
+  deploy:
+    image: registry.netlabs.com.ar/netlabs/subastas_deploy
+    environment:
+      - DB_HOST=subastas_db
+      - DB_DATABASE=subastas
+      - DB_USERNAME=root
+      - DB_PASSWORD=pfjwortij987235!!eas
+      - SUBJECT="prod deploy subastas"
+      - FLYWAY_LOCATIONS=filesystem:/deploy/sql,filesystem:/deploy/production
+    networks:
+      - backend
+    deploy:
+      restart_policy:
+        condition: none
+      labels:
+        traefik.enable: "false"
+
+  cron:
+    image: registry.netlabs.com.ar/netlabs/backup_mysql_57:1
+    networks:
+      - backend
+    volumes:
+      - backup:/backup
+      - /etc/localtime:/etc/localtime
+    configs:
+      - source: crontab_20190114
+        target: /etc/crontab
+    deploy:
+      labels:
+        traefik.enable: "false"
+
+  jobs:
+    image: registry.netlabs.com.ar/netlabs/subastas_jobs
+    environment:
+      - WEB=subastas_web
+    networks:
+      - backend
+    deploy:
+      labels:
+        traefik.enable: "false"
+
+
+
+networks:
+  frontend:
+    external: true
+  backend:
+    external: true
+
+volumes:
+  data:
+    driver: "vsphere"
+    driver_opts:
+      size: 8gb
+
+  subastas_uploads:
+    name: subastas-uploads
+    driver: "vsan/minio-web"
+
+  backup:
+    driver: "nasbackup/minio"
+    name: subastas-db

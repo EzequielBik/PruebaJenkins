@@ -1,0 +1,93 @@
+version: "3.4"
+
+services:
+
+  web:
+    image: registry.netlabs.com.ar/netlabs/prueba-jenkins
+    environment:
+      - DB_HOST=prueba-jenkins_db
+      - DB_DATABASE=prueba-jenkins
+      - DB_USERNAME=root
+      - DB_PASSWORD=m1SQl03r
+      - APP_ENV=development
+      - APP_DEBUG=true
+      - APP_KEY=8UjkgIRwUCW1iVb8ylTtb56OXGKALoul
+      - CACHE_DRIVER=file
+      - SESSION_DRIVER=file
+      - QUEUE_DRIVER=sync
+      - MAIL_DRIVER=smtp
+      - MAIL_HOST=smtp.mailtrap.io
+      - MAIL_PORT=25
+      - MAIL_USERNAME=86dff901d620fc
+      - MAIL_PASSWORD=f8e65d9ec1a7c4
+      - MAIL_ENCRYPTION=null
+      - MAIL_ADDRESS_SYSTEM=rodolfor@subastas.com.ar
+      - MAIL_ADDRESS_SYSTEM_NAME=Subastas Dev
+      - STAGE=dev
+      - GOOGLE_ANALYTICS_ID=UA-132702736-2
+    networks:
+      - frontend
+      - backend
+    volumes:
+      - /c/Users/${USERNAME}/Desktop/docker/src/prueba-jenkins/src:/var/www/html
+      - /c/Users/${USERNAME}/Desktop/docker/volumes/prueba-jenkins/products:/var/www/html/public/img/products
+    deploy:
+      labels:
+        traefik.frontend.rule: "Host:prueba.local.dev.netlabs.com.ar;"
+        traefik.port: 80
+        traefik.docker.network: frontend
+
+  db:
+    image: mysql:5.7.22
+    command: mysqld --ignore-db-dir=lost+found
+    environment:
+      - MYSQL_ROOT_PASSWORD=m1SQl03r
+    networks:
+      - backend
+    volumes:
+      - data:/var/lib/mysql
+      - /c/Users/${USERNAME}/Desktop/docker/src/prueba-jenkins/deploy:/deploy
+    ports:
+      - 3306
+    deploy:
+      labels:
+        traefik.enable: "false"
+
+  deploy:
+    image: registry.netlabs.com.ar/netlabs/deploy:5
+    environment:
+      - DB_HOST=prueba-jenkins_db
+      - DB_DATABASE=prueba-jenkins
+      - DB_USERNAME=root
+      - DB_PASSWORD=m1SQl03r
+      - MAIL_TO=${MAIL_TO}
+      - SUBJECT="dev deploy prueba-jenkins"
+      - FLYWAY_LOCATIONS=filesystem:/deploy/sql,filesystem:/deploy/dev
+    networks:
+      - backend
+    volumes:
+      - /c/Users/${USERNAME}/Desktop/docker/src/prueba-jenkins/deploy:/deploy
+    deploy:
+      restart_policy:
+        condition: none
+      labels:
+        traefik.enable: "false"
+
+  jobs:
+    image: registry.netlabs.com.ar/netlabs/prueba-jenkins_jobs
+    environment:
+      - WEB=prueba-jenkins_web
+    networks:
+      - backend
+    deploy:
+      labels:
+        traefik.enable: "false"
+
+
+networks:
+  frontend:
+    external: true
+  backend:
+
+volumes:
+  data:
